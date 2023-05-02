@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -35,7 +36,9 @@ namespace Exmatter
 
                 
                 request.Content = content;
-                
+
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
                 var response = await _httpClient.SendAsync(request);
                 if (response.IsSuccessStatusCode)
                 {
@@ -50,6 +53,7 @@ namespace Exmatter
             catch (Exception ex)
             {
                 Console.WriteLine($"[!] Error: {ex.Message}");
+                Console.WriteLine($"[!] .NET DEBUG Error: {ex}");
             }
         }
 
