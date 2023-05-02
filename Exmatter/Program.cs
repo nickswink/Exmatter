@@ -21,10 +21,10 @@ namespace Exmatter
             string uploadFilePath = args[1];
             string accessToken = args[2];
 
-            var uploader = new DropboxUploader(accessToken);
+            var dbUploader = new DropboxUploader(accessToken);
 
             // Call the UploadFileAsync method to upload a file to Dropbox
-            await uploader.UploadFileAsync(uploadFilePath);
+            await dbUploader.UploadFileAsync(uploadFilePath);
 
         }
         static async Task HandleSlackCommand(string[] args)
@@ -40,7 +40,10 @@ namespace Exmatter
             string apiKey = args[2];
             string slackChannel = args[3];
 
-            // do stuff
+            var slUploader = new SlackUploader(apiKey, slackChannel);
+
+            // Call the UploadFileAsync method to upload a file to Slack
+            await slUploader.UploadFileAsync(uploadFilePath);
 
         }
 
