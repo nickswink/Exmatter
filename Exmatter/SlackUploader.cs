@@ -49,7 +49,9 @@ namespace Exmatter
                                 var content = await response.Content.ReadAsStringAsync();
                                 if (response.IsSuccessStatusCode)
                                 {
+                                    Console.WriteLine($"[+] Status code: {response.StatusCode}");
                                     Console.WriteLine($"[+] File uploaded successfully \"{filePath}\"");
+                                    
                                 }
                                 else
                                 {
